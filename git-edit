@@ -4,20 +4,28 @@ import os
 import json
 import inquirer
 
-# Function to load or create info.json
+# Function to load or create .git/info.json
 def load_info_json():
-    if os.path.exists('info.json'):
+    info_json_path = os.path.join('.git', 'info.json')
+    
+    if os.path.exists(info_json_path):
         try:
-            with open('info.json', 'r') as f:
+            with open(info_json_path, 'r') as f:
                 return json.load(f)
         except json.JSONDecodeError:
             print("Error: info.json is corrupted. Please fix the JSON format.")
             exit(1)
+    else:
+        # Create .git directory and info.json if they don't exist
+        os.makedirs(os.path.dirname(info_json_path), exist_ok=True)
+    
     return {}
 
-# Function to save data to info.json
+# Function to save data to .git/info.json
 def save_info_json(data):
-    with open('info.json', 'w') as f:
+    info_json_path = os.path.join('.git', 'info.json')
+    
+    with open(info_json_path, 'w') as f:
         json.dump(data, f, indent=4)
 
 # Function to list all files in the current directory with their descriptions
@@ -59,9 +67,10 @@ def create_update_description(file, info_data):
                       default=current_description)
     ]
     answers = inquirer.prompt(questions)
-#    if answers is None:
-#        raise KeyboardInterrupt
-    
+
+    if answers is None:  # Check if the user canceled the prompt
+        exit(0)  # Stop the program
+
     new_description = answers['description']
 
     if new_description == current_description:
@@ -84,7 +93,7 @@ def main():
         selected_file = select_file(files, file_descriptions)
         if selected_file is None:
             break
-        
+
         create_update_description(selected_file, info_data)
 
 if __name__ == "__main__":
