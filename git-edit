@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+
+import os
+import json
+import inquirer
+
+# Function to load or create info.json
+def load_info_json():
+    if os.path.exists('info.json'):
+        try:
+            with open('info.json', 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            print("Error: info.json is corrupted. Please fix the JSON format.")
+            exit(1)
+    return {}
+
+# Function to save data to info.json
+def save_info_json(data):
+    with open('info.json', 'w') as f:
+        json.dump(data, f, indent=4)
+
+# Function to list all files in the current directory with their descriptions
+def list_files(info_data):
+    files = [f for f in os.listdir() if os.path.isfile(f)]
+    file_descriptions = []
+    for file in files:
+        description = info_data.get(file, '')
+        if description:
+            file_descriptions.append(f"{file} : {description}")
+        else:
+            file_descriptions.append(file)
+    return files, file_descriptions  # Return both files and formatted descriptions
+
+# Function to display a list of files and let the user select one
+def select_file(files, file_descriptions):
+    questions = [
+        inquirer.List('file',
+                      message="Select a file",
+                      choices=file_descriptions + ['Exit'])  # Adding 'Exit' option
+    ]
+    try:
+        answers = inquirer.prompt(questions)
+        if answers is None or answers['file'] == 'Exit':  # Handling the 'Exit' option
+            print("Exiting the program...")
+            exit(0)
+        # Map back to the actual file name
+        selected_index = file_descriptions.index(answers['file'])
+        return files[selected_index]
+    except KeyboardInterrupt:
+        exit(0)
+
+# Function to handle the "Create/Update Description" screen
+def create_update_description(file, info_data):
+    current_description = info_data.get(file, '')
+    questions = [
+        inquirer.Text('description',
+                      message="Enter the new description",
+                      default=current_description)
+    ]
+    answers = inquirer.prompt(questions)
+#    if answers is None:
+#        raise KeyboardInterrupt
+    
+    new_description = answers['description']
+
+    if new_description == current_description:
+        print("No Change Detected!")
+    else:
+        info_data[file] = new_description
+        save_info_json(info_data)
+        print("Description updated!")
+
+# Main function to run the script
+def main():
+    info_data = load_info_json()
+
+    while True:
+        files, file_descriptions = list_files(info_data)
+        if not files:
+            print("No files found in the directory.")
+            continue
+
+        selected_file = select_file(files, file_descriptions)
+        if selected_file is None:
+            break
+        
+        create_update_description(selected_file, info_data)
+
+if __name__ == "__main__":
+    main()

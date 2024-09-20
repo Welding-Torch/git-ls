@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+# Onlyr2 - 2nd Version of 'Print Git Description' project.
+# New functionality: Non-reliance on batch script component
+# Disadvantage: Python is slower than windows batch so there is a delay between the command being entered and
+#               the output being rendered.
+
+import sys
+import signal
+import json
+import tabulate
+import os
+import subprocess
+
+__version__ = '2'
+SUCCESS, ERROR = True, False
+
+def ctrlc(signum, frame):
+    """exit with error on SIGINT"""
+    sys.exit(1)
+
+def helptext():
+    print("Usage: <JSON Data> | jtbl -r")
+
+def print_error(message, quiet=False):
+    """print error messages to STDERR and quit with error code"""
+    if not quiet:
+        print(message, file=sys.stderr)
+    sys.exit(1)
+
+def get_json_from_file(file_path):
+    """Read JSON data from a file and return a list of dictionaries"""
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            data = [data]
+        elif not isinstance(data, list):
+            return ERROR, 'Invalid JSON input'
+        return SUCCESS, data
+    except FileNotFoundError:
+        return ERROR, 'info.json not found'
+    except Exception as e:
+        return ERROR, f'Exception: {e}'
+
+def make_rotate_table(data):
+    """Generates a rotated table"""
+    table = ''
+    for idx, row in enumerate(data):
+        rotated_data = [{'File': k, 'Description': v} for k, v in row.items()]
+        succeeded, result = make_table(data=rotated_data, rotate=True)
+        if succeeded:
+            if len(data) > 1:
+                table += f'item: {idx}\n'
+                table += '─' * 80 + '\n'
+            table += result + '\n\n'
+    return SUCCESS, table[:-1]
+
+def make_table(data, rotate=False):
+    """Generate table"""
+    tablefmt = 'simple' if rotate else 'plain'  # types: fancy_grid, simple, plain.
+    return SUCCESS, tabulate.tabulate(data, headers='keys', tablefmt=tablefmt)
+
+def get_git_remote_url():
+    """Get the URL of the origin remote repository."""
+    try:
+        result = subprocess.run(['git', 'remote', 'get-url', 'origin'], stdout=subprocess.PIPE, text=True)
+        return result.stdout.strip()
+    except Exception as e:
+        print(f"Error fetching remote URL: {e}")
+        return None
+
+def extract_repo_name_from_url(url):
+    """Extract the repository name from the URL."""
+    if url:
+        repo_name = os.path.splitext(os.path.basename(url))[0]
+        return repo_name
+    return None
+
+def print_git_description():
+    """Print the content of the .git/description file if it exists."""
+    description_file_path = os.path.join('.git', 'description')
+    if os.path.exists(description_file_path):
+        with open(description_file_path, 'r') as f:
+            description = f.read()
+        print(description)
+    else:
+        print("No description file found.")
+
+def prompt_to_create_json():
+    """Prompt the user to create an info.json file using the git edit plugin."""
+    print("info.json not found. Would you like to create it? (y/n): ", end="")
+    choice = input().strip().lower()
+    if choice == 'y':
+        print("Running git edit to create info.json...")
+        result = subprocess.run(['git', 'edit'], capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"Error running git edit: {result.stderr}")
+        else:
+            print(result.stdout)
+    else:
+        print("info.json creation rejected.")
+        sys.exit(1)
+
+
+def check_git_repository():
+    """Check if the .git directory exists."""
+    if not os.path.exists('.git'):
+        print_error("This is not a git repository (no .git directory found).")
+        return False
+    return True
+
+def main():
+    # Handle SIGINT
+    signal.signal(signal.SIGINT, ctrlc)
+
+    # Check if the current directory is a Git repository
+    if not check_git_repository():
+        return  # If not a git repository, exit early
+
+    # Get the URL of the origin remote
+    git_url = get_git_remote_url()
+
+    # Extract and print the repository name
+    if git_url:
+        repo_name = extract_repo_name_from_url(git_url)
+        if repo_name:
+            print(repo_name)
+
+    # Print the contents of the .git/description file
+    print_git_description()
+    print("\n")  # Add two newlines for formatting
+
+    # Read JSON from file
+    file_path = 'info.json'
+    succeeded, json_data = get_json_from_file(file_path)
+    if not succeeded:
+        if 'not found' in json_data:
+            prompt_to_create_json()
+        else:
+            print_error(json_data)
+
+    # Rotate and print table
+    succeeded, result = make_rotate_table(json_data)
+    if succeeded:
+        print(result)
+    else:
+        print_error(result)
+
+if __name__ == '__main__':
+    main()
