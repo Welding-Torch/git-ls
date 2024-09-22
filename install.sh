@@ -15,4 +15,12 @@ for FILE in "${FILES[@]}"; do
     curl -L "$REPO_URL/$FILE" -o "/usr/local/bin/$FILE" && chmod +x "/usr/local/bin/$FILE"
 done
 
+# Download requirements.txt for Python dependencies
+echo "Downloading requirements.txt..."
+curl -L "$REPO_URL/requirements.txt" -o "/tmp/requirements.txt"
+
+# Install Python dependencies
+echo "Installing Python dependencies..."
+pip install -r /tmp/requirements.txt
+
 echo "Installation complete! You can now use 'git-ls' and 'git-edit'."
