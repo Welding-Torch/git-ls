@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Define the repository URL
-REPO_URL="https://github.com/Welding-Torch/git-ls"
+# Define the repository base URL for raw files
+REPO_URL="https://raw.githubusercontent.com/Welding-Torch/git-ls/main"
 
 # Define the files to download
 FILES=("git-ls" "git-edit")
@@ -12,7 +12,7 @@ mkdir -p /usr/local/bin/
 # Download each file and move it to /usr/local/bin/
 for FILE in "${FILES[@]}"; do
     echo "Downloading $FILE..."
-    curl -L "$REPO_URL/raw/branch/main/$FILE" -o "/usr/local/bin/$FILE" && chmod +x "/usr/local/bin/$FILE"
+    curl -L "$REPO_URL/$FILE" -o "/usr/local/bin/$FILE" && chmod +x "/usr/local/bin/$FILE"
 done
 
 echo "Installation complete! You can now use 'git-ls' and 'git-edit'."
